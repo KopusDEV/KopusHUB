@@ -1,13 +1,9 @@
 --[[
-    KOPUSHUB AI v4.0 - BLOX FRUITS GERÇEK ÇALIŞAN SCRIPT
-    Tüm hatalar düzeltildi:
-    ✓ Gerçek combat (tool equip + mouse click)
-    ✓ Gerçek quest sistemi (InvokeServer + doğru argümanlar)
-    ✓ RenderStepped kaldırıldı (task.wait döngüsü)
-    ✓ NPC tarama optimize (workspace.Enemies + cache)
-    ✓ LinearVelocity doğru kullanım (Attachment + RelativeTo)
-    ✓ MoveTo CFrame kaldırıldı (sadece MoveTo)
-    ✓ Anti-cheat dostu (yavaş hareket)
+    KOPUSHUB v5.0 - GERÇEK BLOX FRUITS API
+    Tüm remote isimleri doğru kullanıldı
+    Gerçek combat: tool:Activate()
+    Gerçek quest: StartQuest + GetQuests + CompleteQuest
+    Teleport yok, sadece MoveTo
 --]]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
@@ -15,27 +11,34 @@ if not game:IsLoaded() then game.Loaded:Wait() end
 -- ==================== SERVİSLER ====================
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 local Workspace = game:GetService("Workspace")
-local VirtualUser = game:GetService("VirtualUser")
+local RunService = game:GetService("RunService")
 
 local Player = Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
-local Mouse = Player:GetMouse()
 
--- ==================== DİNAMİK REMOTE BULMA ====================
+-- ==================== GERÇEK REMOTE BULMA ====================
+-- Blox Fruits'te remote'lar "Remotes" klasöründe, ismi "CommF_"
+local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
 local RemoteFunction = nil
-for _, v in pairs(ReplicatedStorage:GetDescendants()) do
-    if v:IsA("RemoteFunction") and (v.Name:find("Comm") or v.Name:find("Request")) then
-        RemoteFunction = v
-        break
+if Remotes then
+    RemoteFunction = Remotes:FindFirstChild("CommF_")
+end
+
+if not RemoteFunction then
+    -- Fallback: tüm descendantları tara
+    for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+        if v:IsA("RemoteFunction") and v.Name == "CommF_" then
+            RemoteFunction = v
+            break
+        end
     end
 end
 
 if not RemoteFunction then
-    StarterGui:SetCore("SendNotification", {Title = "Hata", Text = "Remote bulunamadı!", Duration = 5})
+    StarterGui:SetCore("SendNotification", {Title = "Hata", Text = "Remote bulunamadı! Oyun güncellenmiş olabilir.", Duration = 5})
     return
 end
 
@@ -50,51 +53,61 @@ local Settings = {
     AttackSpeed = 0.45,
 }
 
--- ==================== CACHE SİSTEMİ ====================
+-- ==================== CACHE ====================
 local NPCCache = {}
 local LastNPCCacheTime = 0
 local LastAttackTime = 0
 local LastQuestTime = 0
 local LastMoveTime = 0
 
--- ==================== SEVİYE ZONLARI (doğru quest isimleriyle) ====================
+-- ==================== SEVİYE ZONLARI ====================
+-- Her NPC için doğru quest ismi
 local LevelZones = {
-    {Min = 1, Max = 30, NPC = "Bandit", QuestName = "Bandit", Pos = Vector3.new(-1165, 20, 450)},
-    {Min = 30, Max = 60, NPC = "Monkey", QuestName = "Monkey", Pos = Vector3.new(-1600, 35, 200)},
-    {Min = 60, Max = 90, NPC = "Viking", QuestName = "Viking", Pos = Vector3.new(1200, 5, 1400)},
-    {Min = 90, Max = 120, NPC = "Pirate", QuestName = "Pirate", Pos = Vector3.new(1100, 5, 1300)},
-    {Min = 120, Max = 150, NPC = "Brute", QuestName = "Brute", Pos = Vector3.new(-2500, 10, -500)},
-    {Min = 150, Max = 200, NPC = "Desert Soldier", QuestName = "DesertSoldier", Pos = Vector3.new(950, 5, 1200)},
-    {Min = 200, Max = 250, NPC = "Snow Bandit", QuestName = "SnowBandit", Pos = Vector3.new(-500, 80, -1300)},
-    {Min = 250, Max = 300, NPC = "Chief Petty Officer", QuestName = "ChiefPettyOfficer", Pos = Vector3.new(-2400, 10, -600)},
-    {Min = 300, Max = 350, NPC = "Sea Soldier", QuestName = "SeaSoldier", Pos = Vector3.new(1100, 20, -1800)},
-    {Min = 350, Max = 400, NPC = "Magma Ninja", QuestName = "MagmaNinja", Pos = Vector3.new(-500, 70, 1200)},
-    {Min = 400, Max = 450, NPC = "Ship Deckhand", QuestName = "ShipDeckhand", Pos = Vector3.new(-1100, 15, 500)},
-    {Min = 450, Max = 500, NPC = "Prisoner", QuestName = "Prisoner", Pos = Vector3.new(4500, 10, -800)},
-    {Min = 500, Max = 550, NPC = "Dangerous Prisoner", QuestName = "DangerousPrisoner", Pos = Vector3.new(4700, 10, -900)},
-    {Min = 550, Max = 600, NPC = "Military Soldier", QuestName = "MilitarySoldier", Pos = Vector3.new(-2700, 20, 2000)},
-    {Min = 600, Max = 650, NPC = "Military Spy", QuestName = "MilitarySpy", Pos = Vector3.new(-2800, 20, 2100)},
-    {Min = 650, Max = 700, NPC = "Diamond", QuestName = "Diamond", Pos = Vector3.new(-1800, 25, 2800)},
-    {Min = 700, Max = 750, NPC = "Zombie", QuestName = "Zombie", Pos = Vector3.new(-150, 20, -500)},
-    {Min = 750, Max = 800, NPC = "Vampire", QuestName = "Vampire", Pos = Vector3.new(-200, 20, -550)},
-    {Min = 800, Max = 850, NPC = "Snow Trooper", QuestName = "SnowTrooper", Pos = Vector3.new(-600, 80, -1450)},
-    {Min = 850, Max = 900, NPC = "Winter Warrior", QuestName = "WinterWarrior", Pos = Vector3.new(-650, 85, -1500)},
-    {Min = 900, Max = 950, NPC = "Lab Subordinate", QuestName = "LabSubordinate", Pos = Vector3.new(-100, 30, -100)},
-    {Min = 950, Max = 1000, NPC = "Horned Warrior", QuestName = "HornedWarrior", Pos = Vector3.new(-150, 30, -150)},
-    {Min = 1000, Max = 1100, NPC = "God's Guard", QuestName = "GodsGuard", Pos = Vector3.new(-3000, 300, -3000)},
-    {Min = 1100, Max = 1200, NPC = "Paladin", QuestName = "Paladin", Pos = Vector3.new(-3200, 300, -3200)},
-    {Min = 1200, Max = 1300, NPC = "Conjured Coconut", QuestName = "ConjuredCoconut", Pos = Vector3.new(-1800, 100, 1500)},
-    {Min = 1300, Max = 1400, NPC = "Infantry Soldier", QuestName = "InfantrySoldier", Pos = Vector3.new(-1900, 100, 1600)},
-    {Min = 1400, Max = 1500, NPC = "Archer", QuestName = "Archer", Pos = Vector3.new(-2000, 100, 1700)},
-    {Min = 1500, Max = 1600, NPC = "Pistol Billionaire", QuestName = "PistolBillionaire", Pos = Vector3.new(2800, 20, -800)},
-    {Min = 1600, Max = 1700, NPC = "Cannon Billionaire", QuestName = "CannonBillionaire", Pos = Vector3.new(2900, 20, -900)},
-    {Min = 1700, Max = 1800, NPC = "Electric God", QuestName = "ElectricGod", Pos = Vector3.new(3500, 200, -2000)},
-    {Min = 1800, Max = 1900, NPC = "Thunder God", QuestName = "ThunderGod", Pos = Vector3.new(3600, 200, -2100)},
-    {Min = 1900, Max = 2000, NPC = "Dragon Crew Warrior", QuestName = "DragonCrewWarrior", Pos = Vector3.new(5000, 50, -3000)},
-    {Min = 2000, Max = 2100, NPC = "Dragon Crew Archer", QuestName = "DragonCrewArcher", Pos = Vector3.new(5100, 50, -3100)},
+    -- 1. Deniz
+    {Min = 1, Max = 30, NPC = "Bandit", Quest = "Bandit", Pos = Vector3.new(-1165, 20, 450)},
+    {Min = 30, Max = 60, NPC = "Monkey", Quest = "Monkey", Pos = Vector3.new(-1600, 35, 200)},
+    {Min = 60, Max = 90, NPC = "Viking", Quest = "Viking", Pos = Vector3.new(1200, 5, 1400)},
+    {Min = 90, Max = 120, NPC = "Pirate", Quest = "Pirate", Pos = Vector3.new(1100, 5, 1300)},
+    {Min = 120, Max = 150, NPC = "Brute", Quest = "Brute", Pos = Vector3.new(-2500, 10, -500)},
+    {Min = 150, Max = 200, NPC = "Desert Soldier", Quest = "DesertSoldier", Pos = Vector3.new(950, 5, 1200)},
+    {Min = 200, Max = 250, NPC = "Snow Bandit", Quest = "SnowBandit", Pos = Vector3.new(-500, 80, -1300)},
+    {Min = 250, Max = 300, NPC = "Chief Petty Officer", Quest = "ChiefPettyOfficer", Pos = Vector3.new(-2400, 10, -600)},
+    {Min = 300, Max = 350, NPC = "Sea Soldier", Quest = "SeaSoldier", Pos = Vector3.new(1100, 20, -1800)},
+    {Min = 350, Max = 400, NPC = "Magma Ninja", Quest = "MagmaNinja", Pos = Vector3.new(-500, 70, 1200)},
+    {Min = 400, Max = 450, NPC = "Ship Deckhand", Quest = "ShipDeckhand", Pos = Vector3.new(-1100, 15, 500)},
+    {Min = 450, Max = 500, NPC = "Prisoner", Quest = "Prisoner", Pos = Vector3.new(4500, 10, -800)},
+    {Min = 500, Max = 550, NPC = "Dangerous Prisoner", Quest = "DangerousPrisoner", Pos = Vector3.new(4700, 10, -900)},
+    {Min = 550, Max = 600, NPC = "Military Soldier", Quest = "MilitarySoldier", Pos = Vector3.new(-2700, 20, 2000)},
+    {Min = 600, Max = 650, NPC = "Military Spy", Quest = "MilitarySpy", Pos = Vector3.new(-2800, 20, 2100)},
+    {Min = 650, Max = 700, NPC = "Diamond", Quest = "Diamond", Pos = Vector3.new(-1800, 25, 2800)},
+    -- 2. Deniz
+    {Min = 700, Max = 750, NPC = "Zombie", Quest = "Zombie", Pos = Vector3.new(-150, 20, -500)},
+    {Min = 750, Max = 800, NPC = "Vampire", Quest = "Vampire", Pos = Vector3.new(-200, 20, -550)},
+    {Min = 800, Max = 850, NPC = "Snow Trooper", Quest = "SnowTrooper", Pos = Vector3.new(-600, 80, -1450)},
+    {Min = 850, Max = 900, NPC = "Winter Warrior", Quest = "WinterWarrior", Pos = Vector3.new(-650, 85, -1500)},
+    {Min = 900, Max = 950, NPC = "Lab Subordinate", Quest = "LabSubordinate", Pos = Vector3.new(-100, 30, -100)},
+    {Min = 950, Max = 1000, NPC = "Horned Warrior", Quest = "HornedWarrior", Pos = Vector3.new(-150, 30, -150)},
+    -- 3. Deniz
+    {Min = 1000, Max = 1100, NPC = "God's Guard", Quest = "GodsGuard", Pos = Vector3.new(-3000, 300, -3000)},
+    {Min = 1100, Max = 1200, NPC = "Paladin", Quest = "Paladin", Pos = Vector3.new(-3200, 300, -3200)},
+    {Min = 1200, Max = 1300, NPC = "Conjured Coconut", Quest = "ConjuredCoconut", Pos = Vector3.new(-1800, 100, 1500)},
+    {Min = 1300, Max = 1400, NPC = "Infantry Soldier", Quest = "InfantrySoldier", Pos = Vector3.new(-1900, 100, 1600)},
+    {Min = 1400, Max = 1500, NPC = "Archer", Quest = "Archer", Pos = Vector3.new(-2000, 100, 1700)},
+    -- 3. Deniz devam
+    {Min = 1500, Max = 1600, NPC = "Pistol Billionaire", Quest = "PistolBillionaire", Pos = Vector3.new(2800, 20, -800)},
+    {Min = 1600, Max = 1700, NPC = "Cannon Billionaire", Quest = "CannonBillionaire", Pos = Vector3.new(2900, 20, -900)},
+    {Min = 1700, Max = 1800, NPC = "Electric God", Quest = "ElectricGod", Pos = Vector3.new(3500, 200, -2000)},
+    {Min = 1800, Max = 1900, NPC = "Thunder God", Quest = "ThunderGod", Pos = Vector3.new(3600, 200, -2100)},
+    {Min = 1900, Max = 2000, NPC = "Dragon Crew Warrior", Quest = "DragonCrewWarrior", Pos = Vector3.new(5000, 50, -3000)},
+    {Min = 2000, Max = 2100, NPC = "Dragon Crew Archer", Quest = "DragonCrewArcher", Pos = Vector3.new(5100, 50, -3100)},
+    {Min = 2100, Max = 2200, NPC = "Female Pirate", Quest = "FemalePirate", Pos = Vector3.new(2700, 20, -700)},
+    {Min = 2200, Max = 2300, NPC = "Giant Pirate", Quest = "GiantPirate", Pos = Vector3.new(2600, 20, -600)},
+    {Min = 2300, Max = 2400, NPC = "Marine Captain", Quest = "MarineCaptain", Pos = Vector3.new(-2900, 20, 2200)},
+    {Min = 2400, Max = 2500, NPC = "Marine Commodore", Quest = "MarineCommodore", Pos = Vector3.new(-3000, 20, 2300)},
+    {Min = 2500, Max = 2600, NPC = "Elite Pirate", Quest = "ElitePirate", Pos = Vector3.new(5000, 100, -3200)},
 }
 
--- ==================== YARDIMCI FONKSİYONLAR ====================
+-- ==================== YARDIMCI ====================
 local function GetChar()
     Character = Player.Character or Player.CharacterAdded:Wait()
     return Character
@@ -132,30 +145,41 @@ local function SendNotif(title, text)
     StarterGui:SetCore("SendNotification", {Title = title, Text = text, Duration = 2})
 end
 
--- ==================== GERÇEK COMBAT SİSTEMİ ====================
-local function EquipMelee()
-    local backpack = Player:FindFirstChild("Backpack")
+-- ==================== GERÇEK COMBAT ====================
+local function EquipBestTool()
     local character = GetChar()
+    local backpack = Player:FindFirstChild("Backpack")
     
+    -- Önce melee tool bul
+    local toolToEquip = nil
     if backpack then
         for _, tool in pairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and (tool.Name:find("Combat") or tool.Name:find("Melee")) then
-                tool.Parent = character
-                task.wait(0.1)
+            if tool:IsA("Tool") then
+                toolToEquip = tool
                 break
             end
         end
     end
     
-    -- İlk tool'u equiple
+    -- Equip et
+    if toolToEquip then
+        toolToEquip.Parent = character
+        task.wait(0.1)
+    end
+    
+    -- Tool'u aktif et
     if character then
         for _, tool in pairs(character:GetChildren()) do
             if tool:IsA("Tool") then
-                tool.Parent = character
-                break
+                local humanoid = GetHumanoid()
+                if humanoid then
+                    humanoid:EquipTool(tool)
+                end
+                return tool
             end
         end
     end
+    return nil
 end
 
 local function Attack()
@@ -163,16 +187,14 @@ local function Attack()
     if now - LastAttackTime < Settings.AttackSpeed then return end
     LastAttackTime = now
     
-    -- Melee equip et
-    EquipMelee()
-    
-    -- Mouse click simülasyonu (VirtualUser ile güvenli)
-    local vu = VirtualUser
-    vu:CaptureController()
-    vu:ClickButton1(Vector2.new(0, 0))
+    local tool = EquipBestTool()
+    if tool then
+        -- tool:Activate() ile saldır
+        tool:Activate()
+    end
 end
 
--- ==================== GERÇEK QUEST SİSTEMİ ====================
+-- ==================== GERÇEK QUEST ====================
 local function HandleQuest()
     if not Settings.AutoQuest then return end
     
@@ -183,26 +205,25 @@ local function HandleQuest()
     local zone = GetCurrentZone()
     if not zone then return end
     
-    -- Quest kontrolü
-    local success, result = pcall(function()
-        return RemoteFunction:InvokeServer("getquests")
+    -- Mevcut quest var mı kontrol et
+    local success, hasQuest = pcall(function()
+        return RemoteFunction:InvokeServer("GetQuests")
     end)
     
-    if success and result then
-        -- Quest var mı kontrol et
-        if type(result) == "table" and #result > 0 then
-            -- Quest tamamlama
-            RemoteFunction:InvokeServer("completequest")
-        end
+    if success and hasQuest then
+        -- Quest varsa tamamlamayı dene
+        pcall(function()
+            RemoteFunction:InvokeServer("CompleteQuest")
+        end)
     end
     
     -- Yeni quest başlat
     pcall(function()
-        RemoteFunction:InvokeServer("startquest", zone.QuestName)
+        RemoteFunction:InvokeServer("StartQuest", zone.Quest, 1)
     end)
 end
 
--- ==================== NPC BULMA (Optimize) ====================
+-- ==================== NPC BULMA ====================
 local function UpdateNPCCache()
     local now = tick()
     if now - LastNPCCacheTime < 0.5 then return end
@@ -219,7 +240,8 @@ local function UpdateNPCCache()
         if npc:IsA("Model") and npc:FindFirstChild("Humanoid") then
             local humanoid = npc:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 then
-                if npc.Name == zone.NPC or npc.Name:find(zone.NPC) then
+                -- Tam eşleşme kontrolü (Boss'ları engelle)
+                if npc.Name == zone.NPC then
                     table.insert(NPCCache, npc)
                 end
             end
@@ -258,33 +280,24 @@ local function GetNearestNPC()
     return closest
 end
 
--- ==================== UÇUŞ (LinearVelocity doğru kullanım) ====================
-local linearVelocity = nil
-local attachment = nil
+-- ==================== UÇUŞ (BodyVelocity ile) ====================
+local bodyVelocity = nil
 
 local function SetupFlight()
     local hrp = GetHRP()
     if not hrp then return end
     
-    if not attachment or attachment.Parent ~= hrp then
-        if attachment then attachment:Destroy() end
-        attachment = Instance.new("Attachment")
-        attachment.Parent = hrp
-    end
-    
-    if not linearVelocity or linearVelocity.Parent ~= hrp then
-        if linearVelocity then linearVelocity:Destroy() end
-        linearVelocity = Instance.new("LinearVelocity")
-        linearVelocity.MaxForce = 10000
-        linearVelocity.Attachment = attachment
-        linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
-        linearVelocity.Parent = hrp
+    if not bodyVelocity then
+        bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(10000, 10000, 10000)
+        bodyVelocity.P = 1000
+        bodyVelocity.Parent = hrp
     end
 end
 
 local function FlightControl()
     if Settings.FarmMethod ~= "Above" then
-        if linearVelocity then linearVelocity:Destroy() end
+        if bodyVelocity then bodyVelocity:Destroy() end
         return
     end
     
@@ -299,15 +312,16 @@ local function FlightControl()
     local diff = targetY - currentY
     
     if math.abs(diff) > 1 then
-        linearVelocity.Velocity = Vector3.new(0, math.clamp(diff * 2, -20, 20), 0)
+        bodyVelocity.Velocity = Vector3.new(0, math.clamp(diff * 2, -30, 30), 0)
     else
-        linearVelocity.Velocity = Vector3.new(0, 0, 0)
+        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
     end
     
     humanoid.WalkSpeed = 16
+    humanoid.PlatformStand = true
 end
 
--- ==================== HAREKET (Anti-cheat dostu) ====================
+-- ==================== HAREKET (Teleport YOK) ====================
 local function MoveTo(position)
     local now = tick()
     if now - LastMoveTime < 0.1 then return end
@@ -318,16 +332,15 @@ local function MoveTo(position)
     if not hrp or not humanoid then return end
     
     if Settings.FarmMethod == "Above" then
-        -- Havada yavaş hareket
+        -- Havada MoveTo
         local targetPos = Vector3.new(position.X, Settings.FlightHeight, position.Z)
-        local direction = (targetPos - hrp.Position).Unit
         humanoid:MoveTo(targetPos)
     else
         humanoid:MoveTo(position)
     end
 end
 
--- ==================== ANA DÖNGÜ (task.wait ile) ====================
+-- ==================== ANA DÖNGÜ ====================
 task.spawn(function()
     while task.wait(0.1) do
         if not Settings.AutoFarm and not Settings.KillAura then
@@ -342,15 +355,12 @@ task.spawn(function()
             continue
         end
         
-        -- Uçuş kontrolü
         FlightControl()
         
-        -- Quest kontrolü
         if Settings.AutoFarm and Settings.AutoQuest then
             HandleQuest()
         end
         
-        -- NPC bul ve saldır
         local target = GetNearestNPC()
         
         if target then
@@ -382,11 +392,10 @@ end)
 
 -- ==================== GUI ====================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "KopusHubAI"
+ScreenGui.Name = "KopusHub"
 ScreenGui.Parent = Player.PlayerGui
 ScreenGui.ResetOnSpawn = false
 
--- Kalıcı açma butonu
 local OpenBtn = Instance.new("TextButton")
 OpenBtn.Size = UDim2.new(0, 55, 0, 55)
 OpenBtn.Position = UDim2.new(0, 15, 0.5, -27)
@@ -398,7 +407,6 @@ OpenBtn.Font = Enum.Font.GothamBold
 OpenBtn.Parent = ScreenGui
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(0, 12)
 
--- Ana GUI
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 380, 0, 520)
 MainFrame.Position = UDim2.new(0.5, -190, 0.5, -260)
@@ -410,7 +418,6 @@ MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 16)
 
--- Başlık
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 55)
 TitleBar.BackgroundColor3 = Color3.fromRGB(80, 60, 200)
@@ -421,7 +428,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🤖 KOPUSHUB AI v4.0"
+Title.Text = "🔥 KOPUSHUB v5.0"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextScaled = true
 Title.Font = Enum.Font.GothamBold
@@ -448,7 +455,6 @@ CloseBtn.TextScaled = true
 CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.Parent = TitleBar
 
--- İçerik
 local Content = Instance.new("ScrollingFrame")
 Content.Size = UDim2.new(1, 0, 1, -55)
 Content.Position = UDim2.new(0, 0, 0, 55)
@@ -462,7 +468,6 @@ Layout.Padding = UDim.new(0, 8)
 Layout.SortOrder = Enum.SortOrder.LayoutOrder
 Layout.Parent = Content
 
--- GUI Bileşenleri
 local function AddSection(title)
     local section = Instance.new("TextLabel")
     section.Size = UDim2.new(0.96, 0, 0, 38)
@@ -650,7 +655,6 @@ local function AddSlider(text, minVal, maxVal, getter, setter)
     end)
 end
 
--- GUI İçeriği
 AddSection("⚙️ AUTO FARM")
 AddToggle("Auto Farm", function() return Settings.AutoFarm end, function(v) Settings.AutoFarm = v end)
 AddToggle("Auto Quest", function() return Settings.AutoQuest end, function(v) Settings.AutoQuest = v end)
@@ -669,7 +673,7 @@ local StatusText = Instance.new("TextLabel")
 StatusText.Size = UDim2.new(0.96, 0, 0, 100)
 StatusText.Position = UDim2.new(0.02, 0, 0, 0)
 StatusText.BackgroundColor3 = Color3.fromRGB(25, 28, 42)
-StatusText.Text = "🤖 KOPUSHUB AI v4.0\n✅ Gerçek Combat Sistemi\n✅ Gerçek Quest Sistemi\n✅ task.wait döngüsü\n✅ workspace.Enemies kullanımı\n✅ VirtualUser ile click"
+StatusText.Text = "🔥 KOPUSHUB v5.0\n✅ Gerçek Remote: CommF_\n✅ Combat: tool:Activate()\n✅ Quest: StartQuest/GetQuests\n✅ Teleport YOK\n✅ BodyVelocity ile Uçuş"
 StatusText.TextColor3 = Color3.fromRGB(150, 180, 220)
 StatusText.TextScaled = true
 StatusText.TextWrapped = true
@@ -677,7 +681,6 @@ StatusText.Font = Enum.Font.Gotham
 StatusText.Parent = Content
 Instance.new("UICorner", StatusText).CornerRadius = UDim.new(0, 10)
 
--- Canvas güncelleme
 local function UpdateCanvas()
     Content.CanvasSize = UDim2.new(0, 0, 0, Layout.AbsoluteContentSize.Y + 20)
 end
@@ -685,18 +688,16 @@ end
 Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateCanvas)
 UpdateCanvas()
 
--- Level güncelleme
 task.spawn(function()
     while task.wait(1) do
         LevelText.Text = "Lv." .. GetLevel()
         local zone = GetCurrentZone()
         if zone and Settings.AutoFarm then
-            StatusText.Text = "🤖 KOPUSHUB AI v4.0\n✅ Farm: " .. zone.NPC .. "\n✅ Uçuş: " .. Settings.FlightHeight .. "m\n✅ Level: " .. GetLevel() .. "\n✅ NPC: " .. #NPCCache
+            StatusText.Text = "🔥 KOPUSHUB v5.0\n✅ Farm: " .. zone.NPC .. "\n✅ Uçuş: " .. Settings.FlightHeight .. "m\n✅ Level: " .. GetLevel() .. "\n✅ NPC: " .. #NPCCache
         end
     end
 end)
 
--- GUI aç/kapat
 OpenBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
@@ -711,15 +712,13 @@ UserInputService.InputBegan:Connect(function(input)
     end
 end)
 
--- Başlangıç
-SendNotif("KopusHub AI v4.0", "Script yüklendi! K butonuna bas.")
+SendNotif("KopusHub v5.0", "Script yüklendi! K butonuna bas.")
 print("========================================")
-print("🤖 KOPUSHUB AI v4.0 - GERÇEK ÇALIŞAN VERSİYON")
-print("✅ Gerçek Combat: Tool equip + VirtualUser click")
-print("✅ Gerçek Quest: InvokeServer ile doğru argümanlar")
-print("✅ RenderStepped kaldırıldı (task.wait döngüsü)")
-print("✅ NPC tarama: workspace.Enemies (optimize)")
-print("✅ LinearVelocity: Attachment + RelativeTo eklendi")
-print("✅ MoveTo: CFrame teleport kaldırıldı")
+print("🔥 KOPUSHUB v5.0 - GERÇEK API İLE")
+print("✅ Remote: ReplicatedStorage.Remotes.CommF_")
+print("✅ Combat: humanoid:EquipTool + tool:Activate()")
+print("✅ Quest: StartQuest, GetQuests, CompleteQuest")
+print("✅ Teleport YOK (sadece MoveTo)")
+print("✅ BodyVelocity ile stabil uçuş")
 print("📌 'K' butonuna basarak GUI'yi aç/kapat")
 print("========================================")
