@@ -1,76 +1,87 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 
--- SERVICES
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
 
-local Player = Players.LocalPlayer
-
--- SETTINGS
+-- AYARLAR
 local Settings = {
     AutoFarm = false,
-    Distance = 20,
-    Height = 20,
-    AttackDelay = 0.35
+    Height = 10,
+    AttackDelay = 0.2
 }
 
--- LEVEL ZONE (basitleştirilmiş)
-local Zones = {
-    {Min = 1, Max = 30, NPC = "Bandit"},
-    {Min = 30, Max = 60, NPC = "Monkey"},
-    {Min = 60, Max = 100, NPC = "Pirate"},
-}
-
--- CHARACTER
-local function GetChar()
-    return Player.Character or Player.CharacterAdded:Wait()
-end
-
-local function HRP()
-    return GetChar():WaitForChild("HumanoidRootPart")
-end
-
-local function Hum()
-    return GetChar():WaitForChild("Humanoid")
-end
-
+-- LEVEL ALMA
 local function GetLevel()
-    local data = Player:FindFirstChild("Data")
+    local data = player:FindFirstChild("Data")
     if data and data:FindFirstChild("Level") then
         return data.Level.Value
     end
     return 1
 end
 
--- ZONE BUL
-local function GetZone()
+-- SEA + QUEST TABLOSU (GENİŞLETİLEBİLİR)
+local Quests = {
+    -- 1. SEA
+    {Min=1, Max=30, NPC="Bandit"},
+    {Min=30, Max=60, NPC="Monkey"},
+    {Min=60, Max=100, NPC="Pirate"},
+    {Min=100, Max=150, NPC="Brute"},
+    {Min=150, Max=200, NPC="Desert Bandit"},
+    
+    -- 2. SEA (örnek)
+    {Min=700, Max=775, NPC="Raider"},
+    {Min=775, Max=850, NPC="Mercenary"},
+    
+    -- 3. SEA (örnek)
+    {Min=1500, Max=1575, NPC="Pirate Millionaire"},
+    {Min=1575, Max=1650, NPC="Pistol Billionaire"},
+}
+
+-- LEVEL’A GÖRE NPC SEÇ
+local function GetQuestData()
     local lvl = GetLevel()
-    for _,z in pairs(Zones) do
-        if lvl >= z.Min and lvl <= z.Max then
-            return z
+    for _,q in pairs(Quests) do
+        if lvl >= q.Min and lvl <= q.Max then
+            return q
         end
     end
-    return Zones[#Zones]
+    return Quests[#Quests]
 end
 
--- NPC CACHE (performans için)
-local NPCFolder = workspace:FindFirstChild("Enemies") or workspace
+-- CHARACTER
+local function GetChar()
+    return player.Character or player.CharacterAdded:Wait()
+end
 
+local function GetRoot()
+    return GetChar():FindFirstChild("HumanoidRootPart")
+end
+
+local function GetHum()
+    return GetChar():FindFirstChild("Humanoid")
+end
+
+-- EN YAKIN NPC
 local function GetNearest()
-    local closest, dist = nil, math.huge
-    local root = HRP()
-    local zone = GetZone()
+    local root = GetRoot()
+    if not root then return nil end
 
-    for _,v in pairs(NPCFolder:GetChildren()) do
-        if v:IsA("Model") and v:FindFirstChild("Humanoid") then
-            if v.Humanoid.Health > 0 and string.find(v.Name, zone.NPC) then
-                local hrp = v:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local d = (root.Position - hrp.Position).Magnitude
-                    if d < dist then
-                        dist = d
-                        closest = v
-                    end
+    local quest = GetQuestData()
+    local closest, dist = nil, math.huge
+
+    local enemies = workspace:FindFirstChild("Enemies")
+    if not enemies then return nil end
+
+    for _,v in pairs(enemies:GetChildren()) do
+        if v.Name:find(quest.NPC) then
+            local hum = v:FindFirstChild("Humanoid")
+            local hrp = v:FindFirstChild("HumanoidRootPart")
+
+            if hum and hrp and hum.Health > 0 then
+                local d = (root.Position - hrp.Position).Magnitude
+                if d < dist then
+                    dist = d
+                    closest = v
                 end
             end
         end
@@ -79,53 +90,54 @@ local function GetNearest()
     return closest
 end
 
--- TOOL ATTACK (gerçek çalışan sistem)
+-- HAREKET
+local function MoveAbove(target)
+    local root = GetRoot()
+    if not root then return end
+
+    root.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, Settings.Height, 0)
+end
+
+-- SALDIRI
 local function Attack()
-    local tool = GetChar():FindFirstChildOfClass("Tool")
-    if tool then
-        tool:Activate()
+    local char = GetChar()
+    local tool = char:FindFirstChildOfClass("Tool")
+
+    if not tool then
+        local bpTool = player.Backpack:FindFirstChildOfClass("Tool")
+        if bpTool then
+            GetHum():EquipTool(bpTool)
+        end
+        return
     end
+
+    tool:Activate()
 end
 
--- UÇUŞ (daha stabil)
-local function Float(target)
-    local root = HRP()
-    root.Velocity = Vector3.zero
-    root.CFrame = CFrame.new(
-        target.Position + Vector3.new(0, Settings.Height, 0),
-        target.Position
-    )
-end
-
--- LOOP (optimize)
+-- ANA LOOP
 task.spawn(function()
     while task.wait(0.1) do
-        if not Settings.AutoFarm then continue end
+        if Settings.AutoFarm then
+            local target = GetNearest()
 
-        local target = GetNearest()
-        if not target then continue end
-
-        local npcHRP = target:FindFirstChild("HumanoidRootPart")
-        if not npcHRP then continue end
-
-        -- üstte dur
-        Float(npcHRP)
-
-        -- saldır
-        Attack()
-        task.wait(Settings.AttackDelay)
+            if target then
+                MoveAbove(target)
+                Attack()
+                task.wait(Settings.AttackDelay)
+            end
+        end
     end
 end)
 
--- BASİT GUI (test için)
-local gui = Instance.new("ScreenGui", Player.PlayerGui)
-
+-- GUI
+local gui = Instance.new("ScreenGui", player.PlayerGui)
 local btn = Instance.new("TextButton", gui)
-btn.Size = UDim2.new(0,120,0,50)
+
+btn.Size = UDim2.new(0,150,0,50)
 btn.Position = UDim2.new(0,20,0,20)
-btn.Text = "Auto Farm OFF"
+btn.Text = "Auto Farm: OFF"
 
 btn.MouseButton1Click:Connect(function()
     Settings.AutoFarm = not Settings.AutoFarm
-    btn.Text = Settings.AutoFarm and "Auto Farm ON" or "OFF"
+    btn.Text = Settings.AutoFarm and "Auto Farm: ON" or "Auto Farm: OFF"
 end)
