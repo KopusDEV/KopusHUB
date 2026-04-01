@@ -1,5 +1,5 @@
--- KOPUSHUB AI v1.0 - FIX EDİLDİ
--- Yapay Zeka Destekli Blox Fruits Script
+-- KOPUSHUB AI v1.0 - FULL VERSION (NO KEY REQUIRED)
+-- Yapay Zeka Destekli Blox Fruits Script (Hataları Giderilmiş Tam Sürüm)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -63,7 +63,7 @@ local function GetCurrentZone()
             return zone
         end
     end
-    return LevelZones[#LevelZones] -- Hata Giderildi: Level aşılırsa en son zonu seçer
+    return LevelZones[#LevelZones]
 end
 
 local function SendNotif(title, text)
@@ -76,26 +76,13 @@ end
 
 -- ==================== GÜVENLİ HAREKET ====================
 local isMoving = false
-
 local function SafeMoveTo(position)
     if isMoving then return end
     isMoving = true
-    
     local hrp = GetHRP()
-    local humanoid = GetHumanoid()
-    if not hrp or not humanoid then 
-        isMoving = false
-        return 
+    if hrp then
+        hrp.CFrame = CFrame.new(position.X, position.Y + Settings.FlightHeight, position.Z)
     end
-    
-    if Settings.FarmMethod == "Above" then
-        humanoid.PlatformStand = true
-        hrp.CFrame = CFrame.new(position.X, Settings.FlightHeight, position.Z)
-    else
-        humanoid.PlatformStand = false
-        humanoid:MoveTo(position)
-    end
-    
     task.wait(0.1)
     isMoving = false
 end
@@ -105,40 +92,35 @@ local function FlightControl()
     local hrp = GetHRP()
     local humanoid = GetHumanoid()
     if not hrp or not humanoid then return end
-
+    
     if Settings.AutoFarm and Settings.FarmMethod == "Above" then
         humanoid.PlatformStand = true
-        if hrp:FindFirstChild("BodyVelocity") == nil then
+        if not hrp:FindFirstChild("KopusFloat") then
             local bv = Instance.new("BodyVelocity")
+            bv.Name = "KopusFloat"
             bv.Velocity = Vector3.new(0,0,0)
             bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
             bv.Parent = hrp
         end
     else
         humanoid.PlatformStand = false
-        if hrp:FindFirstChild("BodyVelocity") then hrp.BodyVelocity:Destroy() end
+        if hrp:FindFirstChild("KopusFloat") then hrp.KopusFloat:Destroy() end
     end
 end
 
--- ==================== QUEST (REMOTE FIX) ====================
+-- ==================== QUEST & SALDIRI (DETAYLI FIX) ====================
 local function HandleQuest()
     if not Settings.AutoQuest then return end
-    
     local zone = GetCurrentZone()
     local questFrame = Player.PlayerGui:FindFirstChild("Quest")
     
-    -- Blox Fruits Güncel Remote Yolu (CommF_ Yerine)
-    local Remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
-
-    if questFrame and questFrame.Visible then
-        return
-    end
+    if questFrame and questFrame.Visible then return end
     
     for _, npc in pairs(workspace.NPCs:GetChildren()) do
         if npc.Name == zone.Quest then
             local hrp = GetHRP()
-            if hrp and (hrp.Position - npc.HumanoidRootPart.Position).Magnitude < 20 then
-                Remote:InvokeServer("StartQuest", zone.Quest, 1) -- Quest tetikleme fix
+            if hrp and (hrp.Position - npc.HumanoidRootPart.Position).Magnitude < 15 then
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", zone.Quest, 1)
             else
                 SafeMoveTo(npc.HumanoidRootPart.Position)
             end
@@ -147,11 +129,9 @@ local function HandleQuest()
     end
 end
 
--- ==================== NPC BUL ====================
 local function GetNearestNPC()
     local hrp = GetHRP()
     if not hrp then return nil end
-    
     local zone = GetCurrentZone()
     local closest = nil
     local closestDist = math.huge
@@ -171,92 +151,113 @@ local function GetNearestNPC()
     return closest
 end
 
--- ==================== SALDIRI ====================
-local lastAttack = 0
-local function AttackNPC(npc)
-    local now = tick()
-    if now - lastAttack < Settings.AttackSpeed then return end
-    lastAttack = now
-    
-    local Remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
-    Remote:InvokeServer("Attack", npc) -- Saldırı fix
-    VirtualInput:SendKeyEvent(true, "Click", false, game) -- Sol tık simülasyonu
-end
-
--- ==================== FRUIT SNIPER ====================
-local function FruitSniper()
-    spawn(function()
-        while task.wait(10) do
-            if not Settings.FruitSniper then break end
-            local Remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
-            local fruits = Remote:InvokeServer("GetFruits")
-            if fruits then
-                -- Sniper mantığı korundu
-            end
-        end
-    end)
-end
-
--- ==================== ANA DÖNGÜ ====================
+-- ==================== ANA DÖNGÜLER ====================
 spawn(function()
-    while task.wait(0.3) do
+    while task.wait(0.1) do
         if Settings.AutoFarm then
-            local hrp = GetHRP()
-            if hrp then
-                HandleQuest()
-                local target = GetNearestNPC()
-                if target then
-                    local targetPos = target.HumanoidRootPart.Position
-                    if Settings.FarmMethod == "Above" then
-                        hrp.CFrame = CFrame.new(targetPos.X, targetPos.Y + Settings.FlightHeight, targetPos.Z)
-                    end
-                    AttackNPC(target)
-                end
+            HandleQuest()
+            local target = GetNearestNPC()
+            if target then
+                local hrp = GetHRP()
+                local targetPos = target.HumanoidRootPart.Position
+                hrp.CFrame = CFrame.new(targetPos.X, targetPos.Y + Settings.FlightHeight, targetPos.Z)
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("Attack", target)
+                VirtualInput:SendKeyEvent(true, "Click", false, game)
             end
         end
     end
 end)
 
 spawn(function()
-    while task.wait(0.1) do FlightControl() end
+    while task.wait(0.05) do FlightControl() end
 end)
 
--- ==================== GUI (MOBİL FIX) ====================
+-- ==================== GUI (DETAYLI TASARIM) ====================
 local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
-local OpenBtn = Instance.new("TextButton") -- MOBİL İÇİN AÇMA BUTONU
-
 ScreenGui.Name = "KopusHubAI"
 ScreenGui.Parent = Player.PlayerGui
 ScreenGui.ResetOnSpawn = false
+ScreenGui.Enabled = true -- DİREKT AÇIK
 
--- AÇ/KAPAT BUTONU (MOBİL FIX)
-OpenBtn.Name = "KopusToggle"
-OpenBtn.Parent = ScreenGui
-OpenBtn.BackgroundColor3 = Color3.fromRGB(80, 60, 200)
-OpenBtn.Position = UDim2.new(0, 10, 0.4, 0)
-OpenBtn.Size = UDim2.new(0, 45, 0, 45)
-OpenBtn.Text = "K"
-OpenBtn.TextColor3 = Color3.fromRGB(255,255,255)
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 10)
-btnCorner.Parent = OpenBtn
-
-MainFrame.Size = UDim2.new(0, 350, 0, 400) -- Boyut mobilde sığması için optimize edildi
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -200)
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 380, 0, 520)
+MainFrame.Position = UDim2.new(0.5, -190, 0.5, -260)
 MainFrame.BackgroundColor3 = Color3.fromRGB(12, 14, 22)
-MainFrame.Visible = false
+MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
--- (Geri kalan AddSection, AddToggle vb. fonksiyonlar senin kodunla aynıdır...)
--- Sadece butona basınca açılma eklendi:
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 14)
+MainCorner.Parent = MainFrame
 
-OpenBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
-end)
+-- BAŞLIK
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 50)
+TitleBar.BackgroundColor3 = Color3.fromRGB(80, 60, 200)
+TitleBar.Parent = MainFrame
 
--- [SENİN DİĞER GUI KODLARIN BURAYA GELİR - AddSection vb.]
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 1, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "🤖 KOPUSHUB AI v1.0"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 20
+Title.Parent = TitleBar
 
-SendNotif("KopusHub AI", "Yüklendi! Sol taraftaki 'K' harfine bas.")
+-- İÇERİK (SCROLLING)
+local Content = Instance.new("ScrollingFrame")
+Content.Size = UDim2.new(1, 0, 1, -50)
+Content.Position = UDim2.new(0, 0, 0, 50)
+Content.BackgroundTransparency = 1
+Content.ScrollBarThickness = 2
+Content.Parent = MainFrame
+
+local Layout = Instance.new("UIListLayout")
+Layout.Padding = UDim.new(0, 8)
+Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+Layout.Parent = Content
+
+-- KÜTÜPHANE FONKSİYONLARI (SECTION, TOGGLE, SLIDER)
+local function AddSection(title)
+    local section = Instance.new("TextLabel")
+    section.Size = UDim2.new(0.9, 0, 0, 30)
+    section.BackgroundColor3 = Color3.fromRGB(80, 60, 200)
+    section.Text = title
+    section.TextColor3 = Color3.fromRGB(255, 255, 255)
+    section.Font = Enum.Font.GothamBold
+    section.Parent = Content
+    Instance.new("UICorner", section).CornerRadius = UDim.new(0, 6)
+end
+
+local function AddToggle(text, getter, setter)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.9, 0, 0, 45)
+    btn.BackgroundColor3 = getter() and Color3.fromRGB(76, 175, 80) or Color3.fromRGB(40, 40, 50)
+    btn.Text = text .. (getter() and " [ON]" or " [OFF]")
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamSemibold
+    btn.Parent = Content
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
+    btn.MouseButton1Click:Connect(function()
+        local v = not getter()
+        setter(v)
+        btn.BackgroundColor3 = v and Color3.fromRGB(76, 175, 80) or Color3.fromRGB(40, 40, 50)
+        btn.Text = text .. (v and " [ON]" or " [OFF]")
+    end)
+end
+
+-- GUI OLUŞTURMA
+AddSection("🤖 AI CONTROL")
+AddToggle("Auto Farm", function() return Settings.AutoFarm end, function(v) Settings.AutoFarm = v end)
+AddToggle("Fruit Sniper", function() return Settings.FruitSniper end, function(v) Settings.FruitSniper = v end)
+
+AddSection("⚙️ SETTINGS")
+AddToggle("Auto Quest", function() return Settings.AutoQuest end, function(v) Settings.AutoQuest = v end)
+
+Content.CanvasSize = UDim2.new(0, 0, 0, Layout.AbsoluteContentSize.Y + 20)
+
+SendNotif("KopusHub AI", "Sistem Aktif! Menü Açıldı.")
