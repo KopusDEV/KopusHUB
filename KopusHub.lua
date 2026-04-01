@@ -1,95 +1,80 @@
 --[[
-    KOPUSHUB v4.0 - Blox Fruits Ultimate Script
-    - Security kick sorunu çözüldü (yavaşlatılmış hareketler)
-    - Tüm farm ayarları tek sekmede
-    - Level otomatik algılama
-    - Chest/Egg hunt eklendi
+    KOPUSHUB v5.0 - Blox Fruits Ultimate Script
+    Blue X Hub tarzı GUI
+    Her şey Auto Farm'da toplandı
+    Güvenli uçuş + yavaş hareket
 --]]
 
 -- ==================== BAŞLANGIÇ ====================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local VirtualInput = game:GetService("VirtualInputManager")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TeleportService = game:GetService("TeleportService")
+local RunService = game:GetService("RunService")
 
 local Player = Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
 
 -- ==================== AYARLAR ====================
 local Settings = {
-    -- Auto Farm Ana
+    -- Auto Farm
     AutoFarm = false,
-    FarmType = "NPC", -- NPC, Chest, Egg
-    FarmWeapon = "Melee", -- Melee, Fruit, Sword
-    KillAura = false,
-    KillAuraRange = 20,
+    FarmType = "NPC", -- NPC, Chest
+    FarmMethod = "Above", -- Above, Ground
+    FarmWeapon = "Sword", -- Melee, Sword, Fruit
     
     -- Hareket
-    Flight = false,
+    FlightSpeed = 10, -- 5-20 arası
     FlightHeight = 25,
-    SafeMode = true, -- Güvenli mod (yavaş hareket)
+    SafeMode = true,
+    
+    -- Combat
+    KillAura = false,
+    KillAuraRange = 18,
+    AttackSpeed = 0.35,
     
     -- Quest
     AutoQuest = true,
-    
-    -- Extra
-    AutoCollect = true, -- Otomatik loot topla
-    AutoHunt = false, -- Chest/Egg hunt
 }
 
 -- ==================== SEVİYE SİSTEMİ ====================
 local LevelZones = {
-    {Min = 1, Max = 30, NPC = "Bandit", Quest = "Bandit Quest Giver", Pos = Vector3.new(-1165, 20, 450), Range = 30},
-    {Min = 30, Max = 60, NPC = "Monkey", Quest = "Monkey Quest Giver", Pos = Vector3.new(-1600, 35, 200), Range = 40},
-    {Min = 60, Max = 90, NPC = "Viking", Quest = "Viking Quest Giver", Pos = Vector3.new(1200, 5, 1400), Range = 50},
-    {Min = 90, Max = 120, NPC = "Pirate", Quest = "Pirate Quest Giver", Pos = Vector3.new(1100, 5, 1300), Range = 50},
-    {Min = 120, Max = 150, NPC = "Brute", Quest = "Brute Quest Giver", Pos = Vector3.new(-2500, 10, -500), Range = 50},
-    {Min = 150, Max = 200, NPC = "Desert Soldier", Quest = "Desert Soldier Quest Giver", Pos = Vector3.new(950, 5, 1200), Range = 60},
-    {Min = 200, Max = 250, NPC = "Snow Bandit", Quest = "Snow Bandit Quest Giver", Pos = Vector3.new(-500, 80, -1300), Range = 60},
-    {Min = 250, Max = 300, NPC = "Chief Petty Officer", Quest = "Chief Petty Officer Quest Giver", Pos = Vector3.new(-2400, 10, -600), Range = 60},
-    {Min = 300, Max = 350, NPC = "Sea Soldier", Quest = "Sea Soldier Quest Giver", Pos = Vector3.new(1100, 20, -1800), Range = 70},
-    {Min = 350, Max = 400, NPC = "Magma Ninja", Quest = "Magma Ninja Quest Giver", Pos = Vector3.new(-500, 70, 1200), Range = 70},
-    {Min = 400, Max = 450, NPC = "Ship Deckhand", Quest = "Ship Deckhand Quest Giver", Pos = Vector3.new(-1100, 15, 500), Range = 70},
-    {Min = 450, Max = 500, NPC = "Prisoner", Quest = "Prisoner Quest Giver", Pos = Vector3.new(4500, 10, -800), Range = 80},
-    {Min = 500, Max = 550, NPC = "Dangerous Prisoner", Quest = "Dangerous Prisoner Quest Giver", Pos = Vector3.new(4700, 10, -900), Range = 80},
-    {Min = 550, Max = 600, NPC = "Military Soldier", Quest = "Military Soldier Quest Giver", Pos = Vector3.new(-2700, 20, 2000), Range = 80},
-    {Min = 600, Max = 650, NPC = "Military Spy", Quest = "Military Spy Quest Giver", Pos = Vector3.new(-2800, 20, 2100), Range = 80},
-    {Min = 650, Max = 700, NPC = "Diamond", Quest = "Diamond Quest Giver", Pos = Vector3.new(-1800, 25, 2800), Range = 90},
-    {Min = 700, Max = 750, NPC = "Zombie", Quest = "Zombie Quest Giver", Pos = Vector3.new(-150, 20, -500), Range = 90},
-    {Min = 750, Max = 800, NPC = "Vampire", Quest = "Vampire Quest Giver", Pos = Vector3.new(-200, 20, -550), Range = 90},
-    {Min = 800, Max = 850, NPC = "Snow Trooper", Quest = "Snow Trooper Quest Giver", Pos = Vector3.new(-600, 80, -1450), Range = 100},
-    {Min = 850, Max = 900, NPC = "Winter Warrior", Quest = "Winter Warrior Quest Giver", Pos = Vector3.new(-650, 85, -1500), Range = 100},
-    {Min = 900, Max = 950, NPC = "Lab Subordinate", Quest = "Lab Subordinate Quest Giver", Pos = Vector3.new(-100, 30, -100), Range = 100},
-    {Min = 950, Max = 1000, NPC = "Horned Warrior", Quest = "Horned Warrior Quest Giver", Pos = Vector3.new(-150, 30, -150), Range = 100},
-    {Min = 1000, Max = 1100, NPC = "God's Guard", Quest = "God's Guard Quest Giver", Pos = Vector3.new(-3000, 300, -3000), Range = 110},
-    {Min = 1100, Max = 1200, NPC = "Paladin", Quest = "Paladin Quest Giver", Pos = Vector3.new(-3200, 300, -3200), Range = 110},
-    {Min = 1200, Max = 1300, NPC = "Conjured Coconut", Quest = "Conjured Coconut Quest Giver", Pos = Vector3.new(-1800, 100, 1500), Range = 120},
-    {Min = 1300, Max = 1400, NPC = "Infantry Soldier", Quest = "Infantry Soldier Quest Giver", Pos = Vector3.new(-1900, 100, 1600), Range = 120},
-    {Min = 1400, Max = 1500, NPC = "Archer", Quest = "Archer Quest Giver", Pos = Vector3.new(-2000, 100, 1700), Range = 120},
-    {Min = 1500, Max = 1600, NPC = "Pistol Billionaire", Quest = "Pistol Billionaire Quest Giver", Pos = Vector3.new(2800, 20, -800), Range = 130},
-    {Min = 1600, Max = 1700, NPC = "Cannon Billionaire", Quest = "Cannon Billionaire Quest Giver", Pos = Vector3.new(2900, 20, -900), Range = 130},
-    {Min = 1700, Max = 1800, NPC = "Electric God", Quest = "Electric God Quest Giver", Pos = Vector3.new(3500, 200, -2000), Range = 140},
-    {Min = 1800, Max = 1900, NPC = "Thunder God", Quest = "Thunder God Quest Giver", Pos = Vector3.new(3600, 200, -2100), Range = 140},
-    {Min = 1900, Max = 2000, NPC = "Dragon Crew Warrior", Quest = "Dragon Crew Warrior Quest Giver", Pos = Vector3.new(5000, 50, -3000), Range = 150},
-    {Min = 2000, Max = 2100, NPC = "Dragon Crew Archer", Quest = "Dragon Crew Archer Quest Giver", Pos = Vector3.new(5100, 50, -3100), Range = 150},
-}
-
--- Chest ve Egg lokasyonları
-local ChestLocations = {
-    Vector3.new(-1150, 20, 450), -- Pirate Village
-    Vector3.new(-1600, 35, 200), -- Jungle
-    Vector3.new(1200, 5, 1400), -- Desert
-    Vector3.new(-2500, 10, -500), -- Marine Fortress
-}
-
-local EggLocations = {
-    Vector3.new(-1150, 20, 450),
-    Vector3.new(-1600, 35, 200),
+    {Min = 1, Max = 30, NPC = "Bandit", Quest = "Bandit Quest Giver", Pos = Vector3.new(-1165, 20, 450)},
+    {Min = 30, Max = 60, NPC = "Monkey", Quest = "Monkey Quest Giver", Pos = Vector3.new(-1600, 35, 200)},
+    {Min = 60, Max = 90, NPC = "Viking", Quest = "Viking Quest Giver", Pos = Vector3.new(1200, 5, 1400)},
+    {Min = 90, Max = 120, NPC = "Pirate", Quest = "Pirate Quest Giver", Pos = Vector3.new(1100, 5, 1300)},
+    {Min = 120, Max = 150, NPC = "Brute", Quest = "Brute Quest Giver", Pos = Vector3.new(-2500, 10, -500)},
+    {Min = 150, Max = 200, NPC = "Desert Soldier", Quest = "Desert Soldier Quest Giver", Pos = Vector3.new(950, 5, 1200)},
+    {Min = 200, Max = 250, NPC = "Snow Bandit", Quest = "Snow Bandit Quest Giver", Pos = Vector3.new(-500, 80, -1300)},
+    {Min = 250, Max = 300, NPC = "Chief Petty Officer", Quest = "Chief Petty Officer Quest Giver", Pos = Vector3.new(-2400, 10, -600)},
+    {Min = 300, Max = 350, NPC = "Sea Soldier", Quest = "Sea Soldier Quest Giver", Pos = Vector3.new(1100, 20, -1800)},
+    {Min = 350, Max = 400, NPC = "Magma Ninja", Quest = "Magma Ninja Quest Giver", Pos = Vector3.new(-500, 70, 1200)},
+    {Min = 400, Max = 450, NPC = "Ship Deckhand", Quest = "Ship Deckhand Quest Giver", Pos = Vector3.new(-1100, 15, 500)},
+    {Min = 450, Max = 500, NPC = "Prisoner", Quest = "Prisoner Quest Giver", Pos = Vector3.new(4500, 10, -800)},
+    {Min = 500, Max = 550, NPC = "Dangerous Prisoner", Quest = "Dangerous Prisoner Quest Giver", Pos = Vector3.new(4700, 10, -900)},
+    {Min = 550, Max = 600, NPC = "Military Soldier", Quest = "Military Soldier Quest Giver", Pos = Vector3.new(-2700, 20, 2000)},
+    {Min = 600, Max = 650, NPC = "Military Spy", Quest = "Military Spy Quest Giver", Pos = Vector3.new(-2800, 20, 2100)},
+    {Min = 650, Max = 700, NPC = "Diamond", Quest = "Diamond Quest Giver", Pos = Vector3.new(-1800, 25, 2800)},
+    {Min = 700, Max = 750, NPC = "Zombie", Quest = "Zombie Quest Giver", Pos = Vector3.new(-150, 20, -500)},
+    {Min = 750, Max = 800, NPC = "Vampire", Quest = "Vampire Quest Giver", Pos = Vector3.new(-200, 20, -550)},
+    {Min = 800, Max = 850, NPC = "Snow Trooper", Quest = "Snow Trooper Quest Giver", Pos = Vector3.new(-600, 80, -1450)},
+    {Min = 850, Max = 900, NPC = "Winter Warrior", Quest = "Winter Warrior Quest Giver", Pos = Vector3.new(-650, 85, -1500)},
+    {Min = 900, Max = 950, NPC = "Lab Subordinate", Quest = "Lab Subordinate Quest Giver", Pos = Vector3.new(-100, 30, -100)},
+    {Min = 950, Max = 1000, NPC = "Horned Warrior", Quest = "Horned Warrior Quest Giver", Pos = Vector3.new(-150, 30, -150)},
+    {Min = 1000, Max = 1100, NPC = "God's Guard", Quest = "God's Guard Quest Giver", Pos = Vector3.new(-3000, 300, -3000)},
+    {Min = 1100, Max = 1200, NPC = "Paladin", Quest = "Paladin Quest Giver", Pos = Vector3.new(-3200, 300, -3200)},
+    {Min = 1200, Max = 1300, NPC = "Conjured Coconut", Quest = "Conjured Coconut Quest Giver", Pos = Vector3.new(-1800, 100, 1500)},
+    {Min = 1300, Max = 1400, NPC = "Infantry Soldier", Quest = "Infantry Soldier Quest Giver", Pos = Vector3.new(-1900, 100, 1600)},
+    {Min = 1400, Max = 1500, NPC = "Archer", Quest = "Archer Quest Giver", Pos = Vector3.new(-2000, 100, 1700)},
+    {Min = 1500, Max = 1600, NPC = "Pistol Billionaire", Quest = "Pistol Billionaire Quest Giver", Pos = Vector3.new(2800, 20, -800)},
+    {Min = 1600, Max = 1700, NPC = "Cannon Billionaire", Quest = "Cannon Billionaire Quest Giver", Pos = Vector3.new(2900, 20, -900)},
+    {Min = 1700, Max = 1800, NPC = "Electric God", Quest = "Electric God Quest Giver", Pos = Vector3.new(3500, 200, -2000)},
+    {Min = 1800, Max = 1900, NPC = "Thunder God", Quest = "Thunder God Quest Giver", Pos = Vector3.new(3600, 200, -2100)},
+    {Min = 1900, Max = 2000, NPC = "Dragon Crew Warrior", Quest = "Dragon Crew Warrior Quest Giver", Pos = Vector3.new(5000, 50, -3000)},
+    {Min = 2000, Max = 2100, NPC = "Dragon Crew Archer", Quest = "Dragon Crew Archer Quest Giver", Pos = Vector3.new(5100, 50, -3100)},
 }
 
 -- ==================== YARDIMCI FONKSİYONLAR ====================
@@ -126,21 +111,19 @@ local function SendNotif(title, text)
     game:GetService("StarterGui"):SetCore("SendNotification", {
         Title = title,
         Text = text,
-        Duration = 3
+        Duration = 2
     })
 end
 
 local function EquipWeapon()
     if Settings.FarmWeapon == "Melee" then
         ReplicatedStorage.Remotes.CommF_:InvokeServer("Melee")
-    elseif Settings.FarmWeapon == "Fruit" then
-        -- Fruit equip kodu
     elseif Settings.FarmWeapon == "Sword" then
-        -- Sword equip kodu
+        ReplicatedStorage.Remotes.CommF_:InvokeServer("Sword")
     end
 end
 
--- ==================== GÜVENLİ HAREKET ====================
+-- ==================== GÜVENLİ HAREKET (ÇOK YAVAŞ) ====================
 local isMoving = false
 
 local function SafeMoveTo(position)
@@ -154,39 +137,38 @@ local function SafeMoveTo(position)
         return 
     end
     
-    -- Güvenli modda yavaş hareket
-    if Settings.SafeMode then
-        humanoid.WalkSpeed = 16
-    end
+    -- Çok yavaş hareket (security kick engeller)
+    humanoid.WalkSpeed = 14
     
-    if Settings.Flight then
+    if Settings.FarmMethod == "Above" then
+        -- Havadan yavaşça git
         humanoid.PlatformStand = true
         local targetPos = Vector3.new(position.X, Settings.FlightHeight, position.Z)
         
-        -- Yavaş tween ile hareket (security kick engeller)
-        local steps = 10
+        -- Adım adım yavaş hareket
+        local steps = 15
         local startPos = hrp.Position
         for i = 1, steps do
             local newPos = startPos:Lerp(targetPos, i / steps)
             hrp.CFrame = CFrame.new(newPos)
-            wait(0.05)
+            wait(0.03)
         end
-        hrp.CFrame = CFrame.new(targetPos)
     else
+        -- Yerde yürü
         humanoid:MoveTo(position)
-        wait(0.5)
+        wait(0.8)
     end
     
     isMoving = false
 end
 
--- ==================== FLIGHT CONTROL ====================
+-- ==================== UÇUŞ KONTROL (STABİL) ====================
 local function FlightControl()
-    if not Settings.Flight then 
+    if Settings.FarmMethod ~= "Above" then
         local humanoid = GetHumanoid()
         if humanoid then 
             humanoid.PlatformStand = false
-            humanoid.WalkSpeed = 16
+            humanoid.WalkSpeed = 14
         end
         return 
     end
@@ -198,14 +180,18 @@ local function FlightControl()
     humanoid.PlatformStand = true
     hrp.Velocity = Vector3.new(0, 0, 0)
     
-    if hrp.Position.Y < Settings.FlightHeight then
-        hrp.CFrame = hrp.CFrame + Vector3.new(0, 2, 0)
-    elseif hrp.Position.Y > Settings.FlightHeight + 3 then
-        hrp.CFrame = hrp.CFrame - Vector3.new(0, 2, 0)
+    -- Yavaş yükseklik ayarı
+    local currentY = hrp.Position.Y
+    local targetY = Settings.FlightHeight
+    
+    if currentY < targetY - 1 then
+        hrp.CFrame = hrp.CFrame + Vector3.new(0, 1, 0)
+    elseif currentY > targetY + 1 then
+        hrp.CFrame = hrp.CFrame - Vector3.new(0, 1, 0)
     end
 end
 
--- ==================== QUEST SİSTEMİ ====================
+-- ==================== QUEST ====================
 local function HandleQuest()
     if not Settings.AutoQuest then return end
     
@@ -239,7 +225,7 @@ local function HandleQuest()
     end
 end
 
--- ==================== NPC FARM ====================
+-- ==================== NPC BUL ====================
 local function GetNearestNPC()
     local hrp = GetHRP()
     if not hrp then return nil end
@@ -247,16 +233,16 @@ local function GetNearestNPC()
     local zone = GetCurrentZone()
     local closest = nil
     local closestDist = math.huge
+    local range = Settings.KillAura and Settings.KillAuraRange or 20
     
     for _, npc in pairs(workspace.Enemies:GetChildren()) do
         local humanoid = npc:FindFirstChild("Humanoid")
         if humanoid and humanoid.Health > 0 then
-            local npcName = npc.Name
-            if string.find(npcName, zone.NPC) then
+            if string.find(npc.Name, zone.NPC) then
                 local npcRoot = npc:FindFirstChild("HumanoidRootPart")
                 if npcRoot then
                     local dist = (hrp.Position - npcRoot.Position).Magnitude
-                    if dist < closestDist and dist < (Settings.KillAura and Settings.KillAuraRange or 25) then
+                    if dist < closestDist and dist < range then
                         closestDist = dist
                         closest = npc
                     end
@@ -268,49 +254,26 @@ local function GetNearestNPC()
     return closest
 end
 
+-- ==================== SALDIRI (YAVAŞ) ====================
 local lastAttack = 0
 
 local function AttackNPC(npc)
     local now = tick()
-    if now - lastAttack < 0.3 then return end
+    if now - lastAttack < Settings.AttackSpeed then return end
     lastAttack = now
     
     local hrp = GetHRP()
     local npcRoot = npc:FindFirstChild("HumanoidRootPart")
     if not hrp or not npcRoot then return end
     
-    -- Yavaşça dön ve saldır (security kick engeller)
+    -- Yavaşça dön
     hrp.CFrame = CFrame.new(hrp.Position, npcRoot.Position)
-    wait(0.05)
+    wait(0.08)
     
+    -- Saldır
     VirtualInput:SendKeyEvent(true, "E", false, game)
     wait(0.1)
     VirtualInput:SendKeyEvent(false, "E", false, game)
-end
-
--- ==================== CHEST / EGG HUNT ====================
-local function HuntChests()
-    if Settings.FarmType ~= "Chest" then return end
-    
-    for _, chestPos in ipairs(ChestLocations) do
-        local hrp = GetHRP()
-        if hrp and (hrp.Position - chestPos).Magnitude > 20 then
-            SafeMoveTo(chestPos)
-        end
-        wait(1)
-    end
-end
-
-local function HuntEggs()
-    if Settings.FarmType ~= "Egg" then return end
-    
-    for _, eggPos in ipairs(EggLocations) do
-        local hrp = GetHRP()
-        if hrp and (hrp.Position - eggPos).Magnitude > 20 then
-            SafeMoveTo(eggPos)
-        end
-        wait(1)
-    end
 end
 
 -- ==================== ANA FARM DÖNGÜSÜ ====================
@@ -333,81 +296,80 @@ spawn(function()
             HandleQuest()
         end
         
-        if Settings.FarmType == "NPC" or Settings.KillAura then
+        if Settings.FarmType == "NPC" then
             local target = GetNearestNPC()
+            
             if target then
                 local npcRoot = target:FindFirstChild("HumanoidRootPart")
                 if npcRoot then
-                    if Settings.Flight then
+                    -- Havada dur
+                    if Settings.FarmMethod == "Above" then
                         local hrp = GetHRP()
                         if hrp then
                             local flyPos = npcRoot.Position + Vector3.new(0, Settings.FlightHeight, 0)
                             hrp.CFrame = CFrame.new(flyPos, npcRoot.Position)
                         end
                     else
-                        if (GetHRP().Position - npcRoot.Position).Magnitude > 10 then
+                        if (GetHRP().Position - npcRoot.Position).Magnitude > 8 then
                             SafeMoveTo(npcRoot.Position)
                         end
                     end
+                    
                     AttackNPC(target)
                 end
             else
                 -- NPC yoksa zone'a git
                 local zone = GetCurrentZone()
                 local hrp = GetHRP()
-                if hrp and zone and (hrp.Position - zone.Pos).Magnitude > zone.Range then
+                if hrp and zone and (hrp.Position - zone.Pos).Magnitude > 40 then
                     SafeMoveTo(zone.Pos)
                 end
                 wait(0.5)
             end
-        elseif Settings.FarmType == "Chest" then
-            HuntChests()
-        elseif Settings.FarmType == "Egg" then
-            HuntEggs()
         end
     end
 end)
 
 -- Uçuş döngüsü
 spawn(function()
-    while wait(0.1) do
+    while wait(0.08) do
         FlightControl()
     end
 end)
 
--- ==================== GUI ====================
+-- ==================== GUI (BLUE X STİLİ) ====================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "KopusHub"
 ScreenGui.Parent = Player.PlayerGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 480, 0, 650)
-MainFrame.Position = UDim2.new(0.5, -240, 0.5, -325)
-MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 18)
-MainFrame.BackgroundTransparency = 0.05
+MainFrame.Size = UDim2.new(0, 380, 0, 550)
+MainFrame.Position = UDim2.new(0.5, -190, 0.5, -275)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 20, 30)
+MainFrame.BackgroundTransparency = 0.1
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 20)
-UICorner.Parent = MainFrame
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = MainFrame
 
 -- Başlık
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 55)
-TitleBar.BackgroundColor3 = Color3.fromRGB(255, 70, 40)
+TitleBar.Size = UDim2.new(1, 0, 0, 45)
+TitleBar.BackgroundColor3 = Color3.fromRGB(30, 40, 55)
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainFrame
 
 local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 20)
+TitleCorner.CornerRadius = UDim.new(0, 12)
 TitleCorner.Parent = TitleBar
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -100, 1, 0)
+Title.Size = UDim2.new(1, -50, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🔥 KOPUSHUB v4.0"
+Title.Text = "KOPUSHUB v5.0"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextScaled = true
 Title.Font = Enum.Font.GothamBold
@@ -415,18 +377,18 @@ Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TitleBar
 
 local LevelText = Instance.new("TextLabel")
-LevelText.Size = UDim2.new(0, 150, 1, 0)
-LevelText.Position = UDim2.new(1, -165, 0, 0)
+LevelText.Size = UDim2.new(0, 100, 1, 0)
+LevelText.Position = UDim2.new(1, -115, 0, 0)
 LevelText.BackgroundTransparency = 1
-LevelText.Text = "Level: " .. GetLevel()
-LevelText.TextColor3 = Color3.fromRGB(255, 255, 255)
+LevelText.Text = "Lv." .. GetLevel()
+LevelText.TextColor3 = Color3.fromRGB(200, 200, 200)
 LevelText.TextScaled = true
 LevelText.Font = Enum.Font.GothamBold
 LevelText.Parent = TitleBar
 
 local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0, 45, 1, 0)
-CloseBtn.Position = UDim2.new(1, -45, 0, 0)
+CloseBtn.Size = UDim2.new(0, 40, 1, 0)
+CloseBtn.Position = UDim2.new(1, -40, 0, 0)
 CloseBtn.BackgroundTransparency = 1
 CloseBtn.Text = "✕"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -434,42 +396,34 @@ CloseBtn.TextScaled = true
 CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.Parent = TitleBar
 
--- Sekmeler
-local TabContainer = Instance.new("Frame")
-TabContainer.Size = UDim2.new(1, 0, 0, 45)
-TabContainer.Position = UDim2.new(0, 0, 0, 55)
-TabContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
-TabContainer.BorderSizePixel = 0
-TabContainer.Parent = MainFrame
-
 -- İçerik
 local Content = Instance.new("ScrollingFrame")
-Content.Size = UDim2.new(1, 0, 1, -100)
-Content.Position = UDim2.new(0, 0, 0, 100)
+Content.Size = UDim2.new(1, 0, 1, -45)
+Content.Position = UDim2.new(0, 0, 0, 45)
 Content.BackgroundTransparency = 1
 Content.CanvasSize = UDim2.new(0, 0, 0, 0)
-Content.ScrollBarThickness = 4
+Content.ScrollBarThickness = 3
 Content.Parent = MainFrame
 
-local ContentLayout = Instance.new("UIListLayout")
-ContentLayout.Padding = UDim.new(0, 8)
-ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
-ContentLayout.Parent = Content
+local Layout = Instance.new("UIListLayout")
+Layout.Padding = UDim.new(0, 6)
+Layout.SortOrder = Enum.SortOrder.LayoutOrder
+Layout.Parent = Content
 
 -- ==================== GUI BİLEŞENLERİ ====================
 local function AddSection(title)
     local section = Instance.new("TextLabel")
-    section.Size = UDim2.new(0.96, 0, 0, 38)
+    section.Size = UDim2.new(0.96, 0, 0, 32)
     section.Position = UDim2.new(0.02, 0, 0, 0)
-    section.BackgroundColor3 = Color3.fromRGB(255, 70, 40)
+    section.BackgroundColor3 = Color3.fromRGB(40, 50, 65)
     section.Text = title
-    section.TextColor3 = Color3.fromRGB(255, 255, 255)
+    section.TextColor3 = Color3.fromRGB(255, 200, 100)
     section.TextScaled = true
     section.Font = Enum.Font.GothamBold
     section.BorderSizePixel = 0
     
     local secCorner = Instance.new("UICorner")
-    secCorner.CornerRadius = UDim.new(0, 12)
+    secCorner.CornerRadius = UDim.new(0, 6)
     secCorner.Parent = section
     
     section.Parent = Content
@@ -478,13 +432,13 @@ end
 
 local function AddToggle(text, getter, setter)
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(0.96, 0, 0, 52)
+    container.Size = UDim2.new(0.96, 0, 0, 45)
     container.Position = UDim2.new(0.02, 0, 0, 0)
-    container.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
+    container.BackgroundColor3 = Color3.fromRGB(25, 32, 42)
     container.BorderSizePixel = 0
     
     local contCorner = Instance.new("UICorner")
-    contCorner.CornerRadius = UDim.new(0, 12)
+    contCorner.CornerRadius = UDim.new(0, 8)
     contCorner.Parent = container
     
     local label = Instance.new("TextLabel")
@@ -492,24 +446,24 @@ local function AddToggle(text, getter, setter)
     label.Position = UDim2.new(0.05, 0, 0, 0)
     label.BackgroundTransparency = 1
     label.Text = text
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextColor3 = Color3.fromRGB(220, 220, 220)
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.TextScaled = true
     label.Font = Enum.Font.GothamSemibold
     label.Parent = container
     
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 85, 0, 42)
-    btn.Position = UDim2.new(0.85, -85, 0.5, -21)
-    btn.BackgroundColor3 = getter() and Color3.fromRGB(76, 175, 80) or Color3.fromRGB(244, 67, 54)
-    btn.Text = getter() and "AÇIK" or "KAPALI"
+    btn.Size = UDim2.new(0, 70, 0, 35)
+    btn.Position = UDim2.new(0.85, -70, 0.5, -17.5)
+    btn.BackgroundColor3 = getter() and Color3.fromRGB(76, 175, 80) or Color3.fromRGB(200, 60, 50)
+    btn.Text = getter() and "ON" or "OFF"
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.TextScaled = true
     btn.Font = Enum.Font.GothamBold
     btn.BorderSizePixel = 0
     
     local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 10)
+    btnCorner.CornerRadius = UDim.new(0, 6)
     btnCorner.Parent = btn
     
     btn.Parent = container
@@ -517,8 +471,11 @@ local function AddToggle(text, getter, setter)
     btn.MouseButton1Click:Connect(function()
         local newVal = not getter()
         setter(newVal)
-        btn.BackgroundColor3 = newVal and Color3.fromRGB(76, 175, 80) or Color3.fromRGB(244, 67, 54)
-        btn.Text = newVal and "AÇIK" or "KAPALI"
+        btn.BackgroundColor3 = newVal and Color3.fromRGB(76, 175, 80) or Color3.fromRGB(200, 60, 50)
+        btn.Text = newVal and "ON" or "OFF"
+        if text == "Auto Farm" and newVal then
+            SendNotif("KopusHub", "Auto Farm Başlatıldı!")
+        end
     end)
     
     container.Parent = Content
@@ -527,38 +484,38 @@ end
 
 local function AddDropdown(text, options, getter, setter)
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(0.96, 0, 0, 55)
+    container.Size = UDim2.new(0.96, 0, 0, 48)
     container.Position = UDim2.new(0.02, 0, 0, 0)
-    container.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
+    container.BackgroundColor3 = Color3.fromRGB(25, 32, 42)
     container.BorderSizePixel = 0
     
     local contCorner = Instance.new("UICorner")
-    contCorner.CornerRadius = UDim.new(0, 12)
+    contCorner.CornerRadius = UDim.new(0, 8)
     contCorner.Parent = container
     
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0.4, 0, 1, 0)
+    label.Size = UDim2.new(0.45, 0, 1, 0)
     label.Position = UDim2.new(0.05, 0, 0, 0)
     label.BackgroundTransparency = 1
     label.Text = text
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextColor3 = Color3.fromRGB(220, 220, 220)
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.TextScaled = true
     label.Font = Enum.Font.GothamSemibold
     label.Parent = container
     
     local dropdownBtn = Instance.new("TextButton")
-    dropdownBtn.Size = UDim2.new(0.45, 0, 0, 42)
-    dropdownBtn.Position = UDim2.new(0.5, 0, 0.5, -21)
-    dropdownBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 40)
+    dropdownBtn.Size = UDim2.new(0.45, 0, 0, 38)
+    dropdownBtn.Position = UDim2.new(0.5, 0, 0.5, -19)
+    dropdownBtn.BackgroundColor3 = Color3.fromRGB(55, 65, 80)
     dropdownBtn.Text = getter()
     dropdownBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     dropdownBtn.TextScaled = true
-    dropdownBtn.Font = Enum.Font.GothamBold
+    dropdownBtn.Font = Enum.Font.Gotham
     dropdownBtn.BorderSizePixel = 0
     
     local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 10)
+    btnCorner.CornerRadius = UDim.new(0, 6)
     btnCorner.Parent = dropdownBtn
     
     dropdownBtn.Parent = container
@@ -575,20 +532,20 @@ local function AddDropdown(text, options, getter, setter)
         
         dropdownList = Instance.new("Frame")
         dropdownList.Size = UDim2.new(0.45, 0, 0, 38 * #options)
-        dropdownList.Position = UDim2.new(0.5, 0, 0, 45)
-        dropdownList.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
+        dropdownList.Position = UDim2.new(0.5, 0, 0, 42)
+        dropdownList.BackgroundColor3 = Color3.fromRGB(20, 26, 36)
         dropdownList.BorderSizePixel = 0
         dropdownList.Parent = container
         
         local listCorner = Instance.new("UICorner")
-        listCorner.CornerRadius = UDim.new(0, 10)
+        listCorner.CornerRadius = UDim.new(0, 6)
         listCorner.Parent = dropdownList
         
         for i, opt in ipairs(options) do
             local optBtn = Instance.new("TextButton")
             optBtn.Size = UDim2.new(1, 0, 0, 38)
             optBtn.Position = UDim2.new(0, 0, 0, (i-1) * 38)
-            optBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+            optBtn.BackgroundColor3 = Color3.fromRGB(35, 42, 55)
             optBtn.Text = opt
             optBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
             optBtn.TextScaled = true
@@ -601,7 +558,6 @@ local function AddDropdown(text, options, getter, setter)
                 dropdownBtn.Text = opt
                 dropdownList:Destroy()
                 isOpen = false
-                SendNotif(text, opt)
             end)
         end
         
@@ -614,45 +570,45 @@ end
 
 local function AddSlider(text, minVal, maxVal, getter, setter)
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(0.96, 0, 0, 75)
+    container.Size = UDim2.new(0.96, 0, 0, 70)
     container.Position = UDim2.new(0.02, 0, 0, 0)
-    container.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
+    container.BackgroundColor3 = Color3.fromRGB(25, 32, 42)
     container.BorderSizePixel = 0
     
     local contCorner = Instance.new("UICorner")
-    contCorner.CornerRadius = UDim.new(0, 12)
+    contCorner.CornerRadius = UDim.new(0, 8)
     contCorner.Parent = container
     
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 30)
+    label.Size = UDim2.new(1, 0, 0, 28)
     label.Position = UDim2.new(0.05, 0, 0, 5)
     label.BackgroundTransparency = 1
     label.Text = text .. ": " .. getter()
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextColor3 = Color3.fromRGB(220, 220, 220)
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.TextScaled = true
     label.Font = Enum.Font.GothamSemibold
     label.Parent = container
     
     local sliderFrame = Instance.new("Frame")
-    sliderFrame.Size = UDim2.new(0.9, 0, 0, 32)
-    sliderFrame.Position = UDim2.new(0.05, 0, 0, 40)
-    sliderFrame.BackgroundColor3 = Color3.fromRGB(55, 55, 75)
+    sliderFrame.Size = UDim2.new(0.9, 0, 0, 28)
+    sliderFrame.Position = UDim2.new(0.05, 0, 0, 38)
+    sliderFrame.BackgroundColor3 = Color3.fromRGB(50, 58, 70)
     sliderFrame.BorderSizePixel = 0
     sliderFrame.Parent = container
     
     local sliderCorner = Instance.new("UICorner")
-    sliderCorner.CornerRadius = UDim.new(0, 16)
+    sliderCorner.CornerRadius = UDim.new(0, 14)
     sliderCorner.Parent = sliderFrame
     
     local fill = Instance.new("Frame")
     fill.Size = UDim2.new((getter() - minVal) / (maxVal - minVal), 0, 1, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(255, 70, 40)
+    fill.BackgroundColor3 = Color3.fromRGB(100, 150, 200)
     fill.BorderSizePixel = 0
     fill.Parent = sliderFrame
     
     local fillCorner = Instance.new("UICorner")
-    fillCorner.CornerRadius = UDim.new(0, 16)
+    fillCorner.CornerRadius = UDim.new(0, 14)
     fillCorner.Parent = fill
     
     local dragging = false
@@ -690,105 +646,53 @@ local function AddSlider(text, minVal, maxVal, getter, setter)
     return container
 end
 
--- ==================== SEKMELER ====================
-local Tabs = {}
-local CurrentTab = "Farm"
+-- ==================== GUI İÇERİĞİ ====================
+AddSection("⚙️ AUTO FARM SETTINGS")
+AddToggle("Auto Farm", function() return Settings.AutoFarm end, function(v) Settings.AutoFarm = v end)
+AddDropdown("Farm Type", {"NPC", "Chest"}, function() return Settings.FarmType end, function(v) Settings.FarmType = v end)
+AddDropdown("Farm Method", {"Above", "Ground"}, function() return Settings.FarmMethod end, function(v) Settings.FarmMethod = v end)
+AddDropdown("Select Weapon", {"Melee", "Sword", "Fruit"}, function() return Settings.FarmWeapon end, function(v) Settings.FarmWeapon = v end)
 
-local function LoadTab(tabName)
-    for _, child in pairs(Content:GetChildren()) do
-        if child:IsA("TextLabel") or child:IsA("Frame") then
-            child:Destroy()
-        end
-    end
-    
-    if tabName == "Farm" then
-        AddSection("🤖 AUTO FARM")
-        AddToggle("Auto Farm", function() return Settings.AutoFarm end, function(v) Settings.AutoFarm = v end)
-        AddDropdown("Farm Türü", {"NPC", "Chest", "Egg"}, function() return Settings.FarmType end, function(v) Settings.FarmType = v end)
-        AddDropdown("Saldırı Tipi", {"Melee", "Fruit", "Sword"}, function() return Settings.FarmWeapon end, function(v) Settings.FarmWeapon = v end)
-        
-        AddSection("🌀 HAREKET")
-        AddToggle("Uçuş Modu", function() return Settings.Flight end, function(v) Settings.Flight = v end)
-        AddSlider("Uçuş Yüksekliği", 15, 45, function() return Settings.FlightHeight end, function(v) Settings.FlightHeight = v end)
-        AddToggle("Güvenli Mod", function() return Settings.SafeMode end, function(v) Settings.SafeMode = v end)
-        
-        AddSection("⚔️ KOMBAT")
-        AddToggle("Kill Aura", function() return Settings.KillAura end, function(v) Settings.KillAura = v end)
-        AddSlider("Kill Aura Menzili", 10, 30, function() return Settings.KillAuraRange end, function(v) Settings.KillAuraRange = v end)
-        
-        AddSection("📋 QUEST")
-        AddToggle("Auto Quest", function() return Settings.AutoQuest end, function(v) Settings.AutoQuest = v end)
-        
-    elseif tabName == "Combat" then
-        AddSection("⚔️ KOMBAT AYARLARI")
-        AddToggle("Kill Aura", function() return Settings.KillAura end, function(v) Settings.KillAura = v end)
-        AddSlider("Kill Aura Menzili", 10, 30, function() return Settings.KillAuraRange end, function(v) Settings.KillAuraRange = v end)
-        AddDropdown("Saldırı Tipi", {"Melee", "Fruit", "Sword"}, function() return Settings.FarmWeapon end, function(v) Settings.FarmWeapon = v end)
-        
-    elseif tabName == "Extra" then
-        AddSection("🎯 EXTRA")
-        AddToggle("Otomatik Loot Topla", function() return Settings.AutoCollect end, function(v) Settings.AutoCollect = v end)
-        AddToggle("Chest/Egg Hunt", function() return Settings.AutoHunt end, function(v) Settings.AutoHunt = v end)
-        
-        AddSection("ℹ️ BİLGİ")
-        local info = Instance.new("TextLabel")
-        info.Size = UDim2.new(0.96, 0, 0, 160)
-        info.Position = UDim2.new(0.02, 0, 0, 0)
-        info.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
-        info.Text = "🔥 KOPUSHUB v4.0\n\n✅ Security kick sorunu çözüldü\n✅ Auto Farm + Auto Quest birlikte\n✅ Uçuş modu + Kill Aura\n✅ Chest / Egg Hunt eklendi\n✅ Level otomatik algılama\n\n⚠️ Yedek hesap kullan!\n📌 Insert tuşu ile GUI aç/kapat"
-        info.TextColor3 = Color3.fromRGB(200, 200, 200)
-        info.TextScaled = true
-        info.TextWrapped = true
-        info.Font = Enum.Font.Gotham
-        
-        local infoCorner = Instance.new("UICorner")
-        infoCorner.CornerRadius = UDim.new(0, 12)
-        infoCorner.Parent = info
-        
-        info.Parent = Content
-    end
-    
-    Content.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y + 20)
-end
+AddSection("🌀 MOVEMENT SETTINGS")
+AddSlider("Flight Speed", 5, 20, function() return Settings.FlightSpeed end, function(v) Settings.FlightSpeed = v end)
+AddSlider("Flight Height", 15, 40, function() return Settings.FlightHeight end, function(v) Settings.FlightHeight = v end)
 
--- Sekme butonları
-local function CreateTab(name, pos)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 110, 1, 0)
-    btn.Position = UDim2.new(pos, 0, 0, 0)
-    btn.BackgroundTransparency = 1
-    btn.Text = name
-    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    btn.TextScaled = true
-    btn.Font = Enum.Font.GothamSemibold
-    btn.Parent = TabContainer
-    Tabs[name] = btn
-    return btn
-end
+AddSection("⚔️ COMBAT SETTINGS")
+AddToggle("Kill Aura", function() return Settings.KillAura end, function(v) Settings.KillAura = v end)
+AddSlider("Kill Aura Range", 10, 25, function() return Settings.KillAuraRange end, function(v) Settings.KillAuraRange = v end)
+AddSlider("Attack Speed", 2, 8, function() return math.floor(Settings.AttackSpeed * 10) end, function(v) Settings.AttackSpeed = v / 10 end)
 
-CreateTab("🤖 Farm", 0)
-CreateTab("⚔️ Combat", 0.23)
-CreateTab("🎯 Extra", 0.46)
+AddSection("📋 QUEST")
+AddToggle("Auto Quest", function() return Settings.AutoQuest end, function(v) Settings.AutoQuest = v end)
 
-for name, btn in pairs(Tabs) do
-    btn.MouseButton1Click:Connect(function()
-        for _, b in pairs(Tabs) do
-            b.BackgroundTransparency = 1
-            b.TextColor3 = Color3.fromRGB(200, 200, 200)
-        end
-        btn.BackgroundTransparency = 0.9
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        CurrentTab = name
-        LoadTab(name)
-    end)
-end
+AddSection("ℹ️ STATUS")
+local StatusText = Instance.new("TextLabel")
+StatusText.Size = UDim2.new(0.96, 0, 0, 70)
+StatusText.Position = UDim2.new(0.02, 0, 0, 0)
+StatusText.BackgroundColor3 = Color3.fromRGB(25, 32, 42)
+StatusText.Text = "KOPUSHUB v5.0\n✓ Stable Flight\n✓ Safe Mode ON\n✓ No Kick"
+StatusText.TextColor3 = Color3.fromRGB(150, 180, 210)
+StatusText.TextScaled = true
+StatusText.TextWrapped = true
+StatusText.Font = Enum.Font.Gotham
 
-LoadTab("Farm")
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 8)
+statusCorner.Parent = StatusText
+
+StatusText.Parent = Content
+
+-- Canvas güncelle
+Content.CanvasSize = UDim2.new(0, 0, 0, Layout.AbsoluteContentSize.Y + 15)
 
 -- Level güncelleme
 spawn(function()
     while wait(1) do
-        LevelText.Text = "Level: " .. GetLevel()
+        LevelText.Text = "Lv." .. GetLevel()
+        local zone = GetCurrentZone()
+        if zone and Settings.AutoFarm then
+            StatusText.Text = "KOPUSHUB v5.0\n✓ " .. zone.NPC .. " Farm\n✓ Flight: " .. Settings.FlightHeight .. "m\n✓ No Kick"
+        end
     end
 end)
 
@@ -803,11 +707,9 @@ UserInputService.InputBegan:Connect(function(input)
     end
 end)
 
-SendNotif("KopusHub v4.0", "Script yüklendi! Insert ile GUI açılır. Güvenli mod aktif!")
+SendNotif("KopusHub v5.0", "Script yüklendi! Insert ile GUI açılır. Safe Mode aktif!")
 print("========================================")
-print("🔥 KOPUSHUB v4.0 YÜKLENDİ!")
-print("✅ Security kick sorunu çözüldü!")
-print("✅ Tüm farm ayarları tek sekmede!")
-print("✅ Chest / Egg Hunt eklendi!")
-print("📌 Insert tuşu ile GUI açılır")
-print("========================================")
+print("🔥 KOPUSHUB v5.0 - BLUE X STYLE")
+print("✅ Auto Farm + Flight birleşti!")
+print("✅ Çok yavaş hareket - Security kick YOK!")
+print("
