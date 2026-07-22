@@ -1,7 +1,7 @@
 repeat
     wait()
 until game.Players.LocalPlayer
-local a = "https://raw.githubusercontent.com/KopusDEV/LibraryKopushHub/refs/heads/main/Library"
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/KopusDEV/LibraryKopushHub/refs/heads/main/Library"))()
 local a = loadstring(game:HttpGet(a,true))()
 local a = a:Window("BloxFruit")
 local Set = a:Tab("Settings Farm ", "rbxassetid://18899804355")
