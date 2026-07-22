@@ -1,11 +1,4 @@
---[[
-    KOPUSHUB v6.1 - STABİLİZE EDİLMİŞ VERSİYON
-    Düzeltmeler:
-    - Quest onaylama sistemi eklendi (Sadece E basıp bırakmaz).
-    - Tool kuşanma mantığı optimize edildi (Sürekli loop yapmaz).
-    - Hareket sistemi için Raycast engel kontrolü eklendi.
-    - Anti-Kick önlemleri (Attack speed sınırı).
---]]
+
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -21,7 +14,7 @@ local GuiService = game:GetService("GuiService")
 local Player = Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
 
--- ==================== AYARLAR ====================
+
 local Settings = {
     AutoFarm = false,
     AutoQuest = false,
@@ -29,16 +22,16 @@ local Settings = {
     FarmMethod = "Above",
     FlightHeight = 20,
     AttackRange = 25,
-    AttackSpeed = 0.45, -- Güvenli sınır
+    AttackSpeed = 0.45, 
 }
 
--- ==================== DEĞİŞKENLER ====================
+
 local LastAttack = 0
 local LastQuest = 0
 local CurrentTool = nil
 local BodyVelo = nil
 
--- ==================== YARDIMCI FONKSİYONLAR ====================
+
 local function GetChar() return Player.Character or Player.CharacterAdded:Wait() end
 local function GetHRP() return GetChar():FindFirstChild("HumanoidRootPart") end
 local function GetHum() return GetChar():FindFirstChild("Humanoid") end
@@ -48,7 +41,7 @@ local function GetLevel()
     return (data and data:FindFirstChild("Level")) and data.Level.Value or 1
 end
 
--- Raycast ile engel kontrolü (Takılmayı önlemek için)
+
 local function CheckObstacle()
     local hrp = GetHRP()
     if not hrp then return end
@@ -61,10 +54,10 @@ local function CheckObstacle()
     end
 end
 
--- ==================== GELİŞMİŞ COMBAT ====================
+
 local function SmartEquip()
     local char = GetChar()
-    -- Eğer zaten elimizde bir tool varsa tekrar arama yapma (Performans)
+    
     if char:FindFirstChildOfClass("Tool") then return char:FindFirstChildOfClass("Tool") end
     
     local bp = Player:FindFirstChild("Backpack")
@@ -88,14 +81,14 @@ local function SecureAttack()
     end
 end
 
--- ==================== QUEST ONAYLAMA SİSTEMİ ====================
+
 local function ClickConfirm()
-    -- Blox Fruits diyalog butonlarını otomatik bulur ve tıklar
+   
     local gui = Player.PlayerGui:FindFirstChild("DialogueGui")
     if gui and gui.Enabled then
         local container = gui:FindFirstChild("Frame")
         if container then
-            -- "Confirm" butonuna sanal tıklama simülasyonu
+           
             VirtualInput:SendKeyEvent(true, "E", false, game)
             task.wait(0.1)
             VirtualInput:SendKeyEvent(false, "E", false, game)
@@ -106,10 +99,10 @@ end
 local function HandleQuest()
     if not Settings.AutoQuest or (tick() - LastQuest < 8) then return end
     
-    -- Eğer zaten bir görevimiz varsa işlem yapma
+   
     if Player.PlayerGui.Main:FindFirstChild("Quest") and Player.PlayerGui.Main.Quest.Visible then return end
     
-    local zone = GetCurrentZone() -- Üstteki tablodan çeker
+    local zone = GetCurrentZone() 
     local npcFolder = Workspace:FindFirstChild("NPCs")
     if not npcFolder then return end
     
@@ -125,7 +118,7 @@ local function HandleQuest()
     end
 end
 
--- ==================== STABİL UÇUŞ ====================
+
 local function ToggleFlight(state, targetY)
     local hrp = GetHRP()
     if not hrp then return end
@@ -134,12 +127,12 @@ local function ToggleFlight(state, targetY)
         if not BodyVelo or BodyVelo.Parent ~= hrp then
             if BodyVelo then BodyVelo:Destroy() end
             BodyVelo = Instance.new("BodyVelocity")
-            BodyVelo.MaxForce = Vector3.new(0, 100000, 0) -- Sadece Y ekseninde güç uygula
+            BodyVelo.MaxForce = Vector3.new(0, 100000, 0) 
             BodyVelo.Parent = hrp
         end
         
         local diff = targetY - hrp.Position.Y
-        BodyVelo.Velocity = Vector3.new(0, diff * 5, 0) -- Yumuşak geçiş
+        BodyVelo.Velocity = Vector3.new(0, diff * 5, 0)
     else
         if BodyVelo then 
             BodyVelo:Destroy() 
@@ -148,7 +141,7 @@ local function ToggleFlight(state, targetY)
     end
 end
 
--- ==================== ANA DÖNGÜ (DÜZELTİLMİŞ) ====================
+
 task.spawn(function()
     while task.wait(0.1) do
         if not Settings.AutoFarm then 
@@ -162,20 +155,20 @@ task.spawn(function()
         
         if not hrp or not hum or hum.Health <= 0 then continue end
         
-        -- Engel Kontrolü
+        
         CheckObstacle()
         
-        -- Görev Yönetimi
+        
         HandleQuest()
         
-        -- Hedef Bulma
+        
         local target, dist = GetNearestNPC()
         
         if target and target:FindFirstChild("HumanoidRootPart") then
             local targetPos = target.HumanoidRootPart.Position
             
             if Settings.FarmMethod == "Above" then
-                -- NPC'nin üzerinde uçarak saldır
+               
                 local hoverPos = targetPos + Vector3.new(0, Settings.FlightHeight, 0)
                 ToggleFlight(true, hoverPos.Y)
                 hum:MoveTo(hoverPos)
@@ -184,7 +177,7 @@ task.spawn(function()
                 hum:MoveTo(targetPos)
             end
             
-            -- Mesafe uygunsa saldır
+            
             if dist < Settings.AttackRange then
                 SecureAttack()
             end
@@ -192,7 +185,7 @@ task.spawn(function()
     end
 end)
 
--- Bildirim Gönder
+
 StarterGui:SetCore("SendNotification", {
     Title = "KopusHub v6.1",
     Text = "Stabilize Modu Aktif!",
