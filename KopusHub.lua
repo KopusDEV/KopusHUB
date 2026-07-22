@@ -2,7 +2,7 @@
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
--- ==================== SERVİSLER ====================
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
